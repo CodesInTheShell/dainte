@@ -7,8 +7,11 @@ Each module has its own README.md as they are intended to run independently. Ref
 
 Each module might have there own requirements.txt for dependencies
 
-## mods_py_to_html_docs
+## List of toolkits
+Below are list of tools with their usage and purpose.
+
+### mods_py_to_html_docs
 This will create a html documenatation for each python file on a given directory.
 
-## mods_maltego_ai_localtx
+### mods_maltego_ai_localtx
 This will serve a local maltego transform server that uses AI to generate entities.
