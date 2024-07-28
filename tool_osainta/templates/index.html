@@ -20,7 +20,7 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav">
+                <ul class="navbar-nav me-auto">
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('index') }}">Home</a>
                     </li>
@@ -28,9 +28,14 @@
                         <a class="nav-link" href="{{ url_for('icp') }}">ICP</a>
                     </li>
                 </ul>
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+                    </li>
+                </ul>
             </div>
         </div>
-    </nav>
+    </nav>    
     <div class="container my-5 p-5">
         <h1 class="text-center">OSAINTA</h1>
         <h4 class="text-muted text-center mb-4">Artificial intelligence for open source intelligence.</h4>
@@ -62,6 +67,8 @@
         <div id="result" class="mt-5"></div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         $(document).ready(function() {
@@ -80,9 +87,10 @@
                     data: $(this).serialize(),
                     success: function(response) {
                         if (response.status === 'ok') {
-                            $('#result').html('<hr><h3>SWOT Analysis Result</h3><br><br>' + response.swot);
+                            document.getElementById('result').innerHTML =
+                            marked.parse(response.analysis);
                         } else {
-                            $('#result').html('<div class="alert alert-danger">' + response.message + '</div>');
+                            $('#result').html('<div class="alert alert-danger">' + 'Error performing analysis.' + '</div>');
                         }
                     },
                     error: function() {
