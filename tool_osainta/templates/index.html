@@ -13,16 +13,30 @@
     </style>
 </head>
 <body>
-    <div class="container mt-5">
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">OSAINTA</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('icp') }}">ICP</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="container my-5 p-5">
         <h1 class="text-center">OSAINTA</h1>
         <h4 class="text-muted text-center mb-4">Artificial intelligence for open source intelligence.</h4>
         <form id="analyzeForm" method="POST">
             <div class="mb-3">
-                <label for="api_key" class="form-label">Gemini API Key</label>
-                <input type="text" class="form-control" id="api_key" name="api_key" required>
-            </div>
-            <div class="mb-3">
-                <label for="data" class="form-label">Data</label>
+                <label for="data" class="form-label">Data context:</label>
                 <textarea class="form-control" id="data" name="data" rows="10" required></textarea>
             </div>
             <div class="mb-3">
