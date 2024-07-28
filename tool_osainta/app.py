@@ -135,6 +135,82 @@ def logout():
     response.delete_cookie('access_token')
     return response
 
+@app.route('/api/askir', methods=['POST'])
+@login_required
+def askir():
+    data = request.get_json()
+
+    user_query = data.get('user_query')
+    context = data.get('context')
+
+    promptWithContext = f"""
+    INSTRUCTIONS:
+    Your are an intillegence analyst, analyze the context and user query. your analysis may contain any of the likelyhood expression depending if it is applicable to you analysis.
+    Answer the question, use the context if available for additional context.
+
+    IMPORTANT: Your response is in html format inside a <div> tag.
+    
+    LIKELYHOOD OF EXPRESSION ARE: very unlikely, unlikely, likely and highly likely, almost certain.
+    CONTEXT:\n{context}
+    IMPORTANT: Respond in html format inside a <div> tag.
+    QUESTION: {user_query}
+    ANSWER: in html format inside a <div> tag.
+    """
+
+    model = genai.GenerativeModel(model_name="gemini-1.5-flash", system_instruction=SYSTEM_INSTRUCTION)
+    response = model.generate_content(promptWithContext)
+
+    response = {
+            "status": "success",
+            "irQuery": user_query,
+            "irAnswer": response.text,
+            "irReference": ""
+        }
+    return jsonify(response), 200
+
+@app.route('/api/genintsum', methods=['POST'])
+@login_required
+def genintsum():
+    data = request.get_json()
+
+    irs = data.get('irs')
+    context = data.get('context')
+
+    irsAnwersAndContext = ''
+    for ir in irs:
+        irsAnwersAndContext = '\n'+ irsAnwersAndContext + ir.get('irAnswer', '') + '\n'
+    
+    irsAnwersAndContext = irsAnwersAndContext + '\nCONTEXT:\n'+ context
+
+    promptWithIrsContext = f"""
+    INSTRUCTIONS:
+    Your are an intillegence analyst, generate an intelligence summary following the format for the report. Analyze the given information, make use of the given information.
+
+    IMPORTANT: Your response is in html format inside a <div> tag.
+
+    INFORMATIONS:{irsAnwersAndContext}
+
+    INTSUM FORMAT:
+    Title: 
+    Executive Summary: This contain the summary or your analysis. 
+    Information Obtained:
+    Context: 
+    Assessment:
+
+    ANSWER: in html format inside a <div> tag.
+    """
+
+    model = genai.GenerativeModel(model_name="gemini-1.5-flash", system_instruction=SYSTEM_INSTRUCTION)
+    response = model.generate_content(promptWithIrsContext)
+
+    response = {
+            "status": "success",
+            "intSum": response.text
+        }
+    return jsonify(response), 200
+    
+
+
 if __name__ == '__main__':
     if os.environ.get('OSAINTA_DEBUG'):
         app.run(host='0.0.0.0', port=5000, debug=True)
