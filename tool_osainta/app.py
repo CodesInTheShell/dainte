@@ -122,7 +122,7 @@ def login():
                 print('usl: ', url_for('index'))
                 response = make_response(redirect(url_for('index')))
                 access_token = jwt.encode({"sub": username, "exp": datetime.datetime.utcnow() + datetime.timedelta(days=1)}, OSAINTA_SECRET_KEY, algorithm="HS256")
-                response.set_cookie('access_token', access_token, httponly=True, secure=True)
+                response.set_cookie('access_token', access_token, httponly=True)
                 return response
             return render_template('login.html', error='Invalid username or password')
         else:
