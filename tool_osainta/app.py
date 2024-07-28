@@ -119,6 +119,7 @@ def login():
             user_object = json.loads(user_string)
 
             if username in user_object.keys() and password == user_object.get(username):
+                print('usl: ', url_for('index'))
                 response = make_response(redirect(url_for('index')))
                 access_token = jwt.encode({"sub": username, "exp": datetime.datetime.utcnow() + datetime.timedelta(days=1)}, OSAINTA_SECRET_KEY, algorithm="HS256")
                 response.set_cookie('access_token', access_token, httponly=True, secure=True)
@@ -136,6 +137,6 @@ def logout():
 
 if __name__ == '__main__':
     if os.environ.get('OSAINTA_DEBUG'):
-        app.run(debug=True)
+        app.run(host='0.0.0.0', port=5000, debug=True)
     else:
         app.run(debug=False)
