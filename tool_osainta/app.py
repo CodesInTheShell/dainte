@@ -13,11 +13,15 @@ app.config['SECRET_KEY'] = OSAINTA_SECRET_KEY
 
 genai.configure(api_key=os.environ.get('OSAINTA_GEMINI_API_KEY'))
 
-SYSTEM_INSTRUCTION = "IMPORTANT: Your response is in html format inside a <div> tag."
+SYSTEM_INSTRUCTION = """
+IMPORTANT: 
+Your response is in markdown.
+Your name Osainta, an opensource intellligence analyst bot.
+"""
 
-def swot_analysis(analysis_type, data):
+def perform_analysis(analysis_type, data):
     model = genai.GenerativeModel(model_name="gemini-1.5-flash", system_instruction=SYSTEM_INSTRUCTION)
-    prompt = f"Perform a {analysis_type} analysis on the following data:\n\n{data} and IMPORTANT: Respond in html format inside a <div> tag."
+    prompt = f"Perform a {analysis_type} analysis on the following data:\n\n{data}"
     response = model.generate_content(prompt)
     return response.text
 
@@ -103,8 +107,8 @@ def analyze():
     analysis_type = request.form.getlist('analysis_type')
 
     if 'SWOT' in analysis_type:
-        analysis_result = swot_analysis(analysis_type, data)
-        return jsonify({'status': 'ok', 'swot': analysis_result})
+        analysis_result = perform_analysis(analysis_type, data)
+        return jsonify({'status': 'ok', 'analysis': analysis_result})
     else:
         return jsonify({'status': 'error', 'message': 'Unsupported analysis type'})
 
@@ -145,16 +149,12 @@ def askir():
 
     promptWithContext = f"""
     INSTRUCTIONS:
-    Your are an intillegence analyst, analyze the context and user query. your analysis may contain any of the likelyhood expression depending if it is applicable to you analysis.
+    Analyze the context and user query. Your analysis may contain any of the likelyhood expression depending if it is applicable to you analysis and be sure to apply it only on your analysis response on the question and not about the user.
     Answer the question, use the context if available for additional context.
-
-    IMPORTANT: Your response is in html format inside a <div> tag.
-    
     LIKELYHOOD OF EXPRESSION ARE: very unlikely, unlikely, likely and highly likely, almost certain.
+    EXAMPLE RESPONSE: It is highly likely to rain because it is cloudy. Some other details.
     CONTEXT:\n{context}
-    IMPORTANT: Respond in html format inside a <div> tag.
     QUESTION: {user_query}
-    ANSWER: in html format inside a <div> tag.
     """
 
     model = genai.GenerativeModel(model_name="gemini-1.5-flash", system_instruction=SYSTEM_INSTRUCTION)
@@ -186,8 +186,6 @@ def genintsum():
     INSTRUCTIONS:
     Your are an intillegence analyst, generate an intelligence summary following the format for the report. Analyze the given information, make use of the given information.
 
-    IMPORTANT: Your response is in html format inside a <div> tag.
-
     INFORMATIONS:{irsAnwersAndContext}
 
     INTSUM FORMAT:
@@ -196,8 +194,6 @@ def genintsum():
     Information Obtained:
     Context: 
     Assessment:
-
-    ANSWER: in html format inside a <div> tag.
     """
 
     model = genai.GenerativeModel(model_name="gemini-1.5-flash", system_instruction=SYSTEM_INSTRUCTION)

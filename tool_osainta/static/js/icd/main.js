@@ -15,7 +15,9 @@ const app = Vue.createApp({
             //     embedding: [],
             // }]
             contextText: '',
-            intsum:''
+            intsum:'',
+            showSpinAskOsainta: false,
+            showIntSumSpinner: false,
         }
     },
     created () {
@@ -24,21 +26,30 @@ const app = Vue.createApp({
     },
     methods: {
         queryOsainta(){
-            console.log('queryInput:', this.queryInput)
+            this.showSpinAskOsainta = true
+            if (this.queryInput === '') {
+                console.error('queryInput is empty.')
+                this.showSpinAskOsainta = false
+                return
+            }
             askirApi(JSON.stringify({context: this.contextText, user_query: this.queryInput})).then(function(response) {
-                console.log('resp:', response)
                 this.irs.push(response.data)
                 this.queryInput = ''
+                this.showSpinAskOsainta = false
             }.bind(this))
         },
         generateEmmbeddingRag() {
             console.log('contextText:', this.contextText) 
         },
         generateIntSum(){
+            this.showIntSumSpinner = true
             genintsumApi(JSON.stringify({context: this.contextText, irs: this.irs})).then(function(response) {
-                console.log('resp:', response)
                 this.intsum = response.data.intSum
+                this.showIntSumSpinner = false
             }.bind(this))
+        },
+        toMarkDown(markData){
+            return marked.parse(markData)
         }
     },
     template: /*html*/`
@@ -56,8 +67,13 @@ const app = Vue.createApp({
                 <label for="query_input" class="form-label">Ask for your intelligence requirements:</label>
                 <input v-model="queryInput" type="text" class="form-control" id="query_input" name="query_input" placeholder="What is OSINT?" required>
             </div>
-            <button @click="queryOsainta" type="button" class="btn btn-dark">Ask Osainta</button>
-            <p class="text-muted">Please check below responded IRs and you ask.</p>
+            <div v-if="showSpinAskOsainta" class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <div>
+                <button @click="queryOsainta" type="button" class="btn btn-dark">Ask Osainta</button>
+                <p class="text-muted">Please check below responded IRs and you ask.</p>
+            </div>
         </div>
 
         <hr class="my-5">
@@ -75,7 +91,7 @@ const app = Vue.createApp({
                     </h2>
                     <div :id="'collapse' + index" class="accordion-collapse collapse show" :aria-labelledby="'heading' + index" data-bs-parent="#accordionExample">
                         <div class="accordion-body">
-                            <div v-html="ir.irAnswer"></div>
+                            <div v-html="toMarkDown(ir.irAnswer)"></div>
                         </div>
                         <p class="text-muted text-small p-3">Reference: {{ ir.irReference }}</p>
                     </div>
@@ -86,11 +102,16 @@ const app = Vue.createApp({
         <hr class="my-5">
 
         <h4 class="bg-warning p-2 rounded" >Intelligence summary</h4>
-        <p class="text-muted">Generate an intelligence summary. This will consider you IRs above. The greater the IRs and reponse is the greater the intsum.</p>
-        <button @click="generateIntSum" type="button" class="btn btn-success">Generate INTSUM</button>
+        <div v-if="showIntSumSpinner" class="spinner-border text-success" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <div>
+            <p class="text-muted">Generate an intelligence summary. This will consider you IRs above. The greater the IRs and reponse is the greater the intsum.</p>
+            <button @click="generateIntSum" type="button" class="btn btn-success">Generate INTSUM</button>
+        </div>
         
         <div class="p-4 m-4 border rounded">
-            <div  v-html="intsum"></div>
+            <div  v-html="toMarkDown(intsum)"></div>
         </div>
 
         <hr class="my-5">
