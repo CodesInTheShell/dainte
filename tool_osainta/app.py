@@ -20,13 +20,27 @@ Your name Osainta, an opensource intellligence analyst bot.
 """
 
 def perform_analysis(analysis_type, data):
-    model = genai.GenerativeModel(model_name="gemini-1.5-flash", system_instruction=SYSTEM_INSTRUCTION)
+    model = genai.GenerativeModel(model_name=os.environ.get('OSAINTA_MODEL', 'gemini-1.5-flash'), system_instruction=SYSTEM_INSTRUCTION)
     prompt = f"Perform a {analysis_type} analysis on the following data:\n\n{data}"
     response = model.generate_content(prompt)
     return response.text
 
+def perform_general_assessment(data):
+    model = genai.GenerativeModel(model_name=os.environ.get('OSAINTA_MODEL', 'gemini-1.5-flash'), system_instruction=SYSTEM_INSTRUCTION)
+    prompt = f"""Perform a general assessment analysis on the following data:\n\n{data}
+
+    Follow the response structure below:
+    Capabilities
+    Vulnerabilities 
+    Course of actions
+    Implications to philippines
+    
+    """
+    response = model.generate_content(prompt)
+    return response.text
+
 def process_ask_query(user_query, context):
-    model = genai.GenerativeModel(model_name="gemini-1.5-flash", system_instruction=SYSTEM_INSTRUCTION)
+    model = genai.GenerativeModel(model_name=os.environ.get('OSAINTA_MODEL', 'gemini-1.5-flash'), system_instruction=SYSTEM_INSTRUCTION)
     prompt = f"Answer the user query and be sure to refer your answer to the context if available.\n\nCONTEXT: {context}\n\nUSER QUERY: {user_query} "
     response = model.generate_content(prompt)
     return response.text
@@ -106,11 +120,15 @@ def analyze():
     data = request.form['data']
     analysis_type = request.form.getlist('analysis_type')
 
+    swot_analysis_result = ''
+    genassess_analysis_result = ''
+
     if 'SWOT' in analysis_type:
-        analysis_result = perform_analysis(analysis_type, data)
-        return jsonify({'status': 'ok', 'analysis': analysis_result})
-    else:
-        return jsonify({'status': 'error', 'message': 'Unsupported analysis type'})
+        swot_analysis_result = perform_analysis(analysis_type, data)
+    if 'general_assessment' in analysis_type:
+        genassess_analysis_result = perform_general_assessment(data)
+    
+    return jsonify({'status': 'ok', 'swot': swot_analysis_result, 'genassess': genassess_analysis_result})
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -157,7 +175,7 @@ def askir():
     QUESTION: {user_query}
     """
 
-    model = genai.GenerativeModel(model_name="gemini-1.5-flash", system_instruction=SYSTEM_INSTRUCTION)
+    model = genai.GenerativeModel(model_name=os.environ.get('OSAINTA_MODEL', 'gemini-1.5-flash'), system_instruction=SYSTEM_INSTRUCTION)
     response = model.generate_content(promptWithContext)
 
     response = {
@@ -196,7 +214,7 @@ def genintsum():
     Assessment:
     """
 
-    model = genai.GenerativeModel(model_name="gemini-1.5-flash", system_instruction=SYSTEM_INSTRUCTION)
+    model = genai.GenerativeModel(model_name=os.environ.get('OSAINTA_MODEL', 'gemini-1.5-flash'), system_instruction=SYSTEM_INSTRUCTION)
     response = model.generate_content(promptWithIrsContext)
 
     response = {
