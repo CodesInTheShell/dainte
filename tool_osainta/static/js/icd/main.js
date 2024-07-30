@@ -65,7 +65,7 @@ const app = Vue.createApp({
         <div class="border bg-light p-2 rounded mb-3">
             <div class="mb-3">
                 <label for="query_input" class="form-label">Ask for your intelligence requirements:</label>
-                <input v-model="queryInput" type="text" class="form-control" id="query_input" name="query_input" placeholder="What is OSINT?" required>
+                <textarea v-model="queryInput" class="form-control" id="query_input" rows="3" name="query_input" placeholder="What is OSINT? Give me a SWOT analysis of OSINT." required></textarea>
             </div>
             <div v-if="showSpinAskOsainta" class="spinner-border" role="status">
                 <span class="visually-hidden">Loading...</span>
@@ -106,7 +106,7 @@ const app = Vue.createApp({
             <span class="visually-hidden">Loading...</span>
         </div>
         <div>
-            <p class="text-muted">Generate an intelligence summary. This will consider you IRs above. The greater the IRs and reponse is the greater the intsum.</p>
+            <p class="text-muted">Generate an intelligence summary. This will consider all of your IRs above. The greater the IRs and its reponse is the greater the intsum result.</p>
             <button @click="generateIntSum" type="button" class="btn btn-success">Generate INTSUM</button>
         </div>
         

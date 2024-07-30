@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  mongodb:
+    container_name: mongodb
+    image: mongo:4.4 #7.0
+    ports:
+      - "27017:27017"
+    expose:
+      - "27107"
+    volumes:
+      - ${OSAINT_MNT_FOLDER}mongodb-data:/data/db/ # export OSAINT_MNT_FOLDER=path/to/some/folder
+  
+  qdrant:
+    container_name: qdrant
+    image: qdrant/qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - ${OSAINT_MNT_FOLDER}qdrant_storage:/qdrant/storage:z # export OSAINT_MNT_FOLDER=path/to/some/folder
