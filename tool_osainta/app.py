@@ -5,6 +5,9 @@ import os
 import json
 import jwt
 import datetime
+from models.users import User
+from models.token_usage import TokenUsage
+
 
 OSAINTA_SECRET_KEY = os.environ.get('OSAINTA_SECRET_KEY')
 
@@ -23,7 +26,7 @@ def perform_analysis(analysis_type, data):
     model = genai.GenerativeModel(model_name=os.environ.get('OSAINTA_MODEL', 'gemini-1.5-flash'), system_instruction=SYSTEM_INSTRUCTION)
     prompt = f"Perform a {analysis_type} analysis on the following data:\n\n{data}"
     response = model.generate_content(prompt)
-    return response.text
+    return response
 
 def perform_general_assessment(data):
     model = genai.GenerativeModel(model_name=os.environ.get('OSAINTA_MODEL', 'gemini-1.5-flash'), system_instruction=SYSTEM_INSTRUCTION)
@@ -37,7 +40,7 @@ def perform_general_assessment(data):
     
     """
     response = model.generate_content(prompt)
-    return response.text
+    return response
 
 def process_ask_query(user_query, context):
     model = genai.GenerativeModel(model_name=os.environ.get('OSAINTA_MODEL', 'gemini-1.5-flash'), system_instruction=SYSTEM_INSTRUCTION)
@@ -86,6 +89,19 @@ def embedLargeText(large_text):
         )
     return
 
+def get_current_user():
+    token = request.cookies.get('access_token')
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, OSAINTA_SECRET_KEY, algorithms=['HS256'])
+        return User.find_by_username(payload['sub'])
+    except jwt.ExpiredSignatureError:
+        return None
+    except jwt.InvalidTokenError:
+        return None
+
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -104,6 +120,34 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+MAX_CALLS_PER_DAY = 20
+
+def rate_limit(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        user = get_current_user()
+        if not user:
+            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+        
+        if not user.check_rate_limit(MAX_CALLS_PER_DAY):
+            return jsonify({'status': 'error', 'message': 'Rate limit exceeded'}), 429
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
+def token_available_check(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        user = get_current_user()
+        if not user:
+            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+        
+        if user.tokenAvailable < 1:
+            return jsonify({'status': 'error', 'message': 'You do not have enough token'}), 429
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
 @app.route('/')
 @login_required
 def index():
@@ -116,6 +160,8 @@ def icp():
 
 @app.route('/analyze', methods=['POST'])
 @login_required
+@rate_limit
+@token_available_check
 def analyze():
     data = request.form['data']
     analysis_type = request.form.getlist('analysis_type')
@@ -123,10 +169,25 @@ def analyze():
     swot_analysis_result = ''
     genassess_analysis_result = ''
 
+    user = get_current_user()
+
     if 'SWOT' in analysis_type:
-        swot_analysis_result = perform_analysis(analysis_type, data)
+        swot_analysis_result_obj = perform_analysis('SWOT', data)
+        TokenUsage.create(user.oid, swot_analysis_result_obj)
+        swot_analysis_result = swot_analysis_result_obj.text
+
+        # User AI Token Management
+        user.increment_api_calls()
+        user.decrementTokenAvailableBy(swot_analysis_result_obj.usage_metadata.total_token_count)
+    
     if 'general_assessment' in analysis_type:
-        genassess_analysis_result = perform_general_assessment(data)
+        genassess_analysis_result_obj = perform_general_assessment(data)
+        TokenUsage.create(user.oid, genassess_analysis_result_obj)
+        genassess_analysis_result = genassess_analysis_result_obj.text
+
+        # User AI Token Management
+        user.decrementTokenAvailableBy(genassess_analysis_result_obj.usage_metadata.total_token_count)
+        user.increment_api_calls()
     
     return jsonify({'status': 'ok', 'swot': swot_analysis_result, 'genassess': genassess_analysis_result})
 
@@ -136,17 +197,12 @@ def login():
         username = request.form['username']
         password = request.form['password']
 
-        user_string = os.environ.get('OSAINTA_USER')  # '{"someuser": "somepassword"}'
-        if user_string:
-            user_object = json.loads(user_string)
-
-            if username in user_object.keys() and password == user_object.get(username):
-                print('usl: ', url_for('index'))
-                response = make_response(redirect(url_for('index')))
-                access_token = jwt.encode({"sub": username, "exp": datetime.datetime.utcnow() + datetime.timedelta(days=1)}, OSAINTA_SECRET_KEY, algorithm="HS256")
-                response.set_cookie('access_token', access_token, httponly=True)
-                return response
-            return render_template('login.html', error='Invalid username or password')
+        user = User.find_by_username(username)
+        if user and user.check_password(password):
+            response = make_response(redirect(url_for('index')))
+            access_token = jwt.encode({"sub": username, "exp": datetime.datetime.utcnow() + datetime.timedelta(days=1)}, OSAINTA_SECRET_KEY, algorithm="HS256")
+            response.set_cookie('access_token', access_token, httponly=True)
+            return response
         else:
             return render_template('login.html', error='Invalid username or password')
     return render_template('login.html')
@@ -159,7 +215,10 @@ def logout():
 
 @app.route('/api/askir', methods=['POST'])
 @login_required
+@rate_limit
+@token_available_check
 def askir():
+    user = get_current_user()
     data = request.get_json()
 
     user_query = data.get('user_query')
@@ -176,19 +235,26 @@ def askir():
     """
 
     model = genai.GenerativeModel(model_name=os.environ.get('OSAINTA_MODEL', 'gemini-1.5-flash'), system_instruction=SYSTEM_INSTRUCTION)
-    response = model.generate_content(promptWithContext)
+    model_response = model.generate_content(promptWithContext)
 
     response = {
             "status": "success",
             "irQuery": user_query,
-            "irAnswer": response.text,
+            "irAnswer": model_response.text,
             "irReference": ""
         }
+    TokenUsage.create(user.oid, model_response)
+    # User AI Token Management
+    user.decrementTokenAvailableBy(model_response.usage_metadata.total_token_count)
+    user.increment_api_calls()
     return jsonify(response), 200
 
 @app.route('/api/genintsum', methods=['POST'])
 @login_required
+@rate_limit
+@token_available_check
 def genintsum():
+    user = get_current_user()
     data = request.get_json()
 
     irs = data.get('irs')
@@ -215,12 +281,16 @@ def genintsum():
     """
 
     model = genai.GenerativeModel(model_name=os.environ.get('OSAINTA_MODEL', 'gemini-1.5-flash'), system_instruction=SYSTEM_INSTRUCTION)
-    response = model.generate_content(promptWithIrsContext)
+    model_response = model.generate_content(promptWithIrsContext)
 
     response = {
             "status": "success",
-            "intSum": response.text
+            "intSum": model_response.text
         }
+    TokenUsage.create(user.oid, model_response)
+    # User AI Token Management
+    user.decrementTokenAvailableBy(model_response.usage_metadata.total_token_count)
+    user.increment_api_calls()
     return jsonify(response), 200
     
 
@@ -229,4 +299,4 @@ if __name__ == '__main__':
     if os.environ.get('OSAINTA_DEBUG'):
         app.run(host='0.0.0.0', port=5000, debug=True)
     else:
-        app.run(debug=False)
+        app.run(host='0.0.0.0', port=5000, debug=False)

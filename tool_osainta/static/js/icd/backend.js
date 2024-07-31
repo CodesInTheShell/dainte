@@ -1,8 +1,26 @@
+const apiClient = axios.create({
+    baseURL: '/', 
+    headers: {
+        'Content-Type': 'application/json'
+    }
+});
+
+apiClient.interceptors.response.use(
+    (response) => {
+        return response;
+    },
+    (error) => {
+        if (error.response && error.response.status === 429) {
+            alert('Rate limit reached or not enough token. Please try again next time or contact the system admnistrator.');
+        } else {
+            console.error('Error querying Osainta:', error);
+        }
+        return Promise.reject(error); 
+    }
+);
+
 export const askirApi = (data) => {
-    return axios.post('/api/askir', data, {
-        headers: {
-            'Content-Type': 'application/json'
-            }
+    return apiClient.post('/api/askir', data, {
         })
         .then((response) => {
             return response
@@ -12,10 +30,7 @@ export const askirApi = (data) => {
 }
 
 export const genintsumApi = (data) => {
-    return axios.post('/api/genintsum', data, {
-        headers: {
-            'Content-Type': 'application/json'
-            }
+    return apiClient.post('/api/genintsum', data, {
         })
         .then((response) => {
             return response

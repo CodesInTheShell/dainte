@@ -116,8 +116,9 @@
                             $('#errResult').html('<div class="alert alert-danger">' + 'Error performing analysis.' + '</div>');
                         }
                     },
-                    error: function() {
-                        $('#errResult').html('<div class="alert alert-danger">An error occurred while processing your request.</div>');
+                    error: function(response) {
+                        console.log('responseERR: ', response.responseJSON);
+                        $('#errResult').html('<div class="alert alert-danger">' +response.responseJSON.message+'</div>');
                     },
                     complete: function() {
                         $button.prop('disabled', false);
