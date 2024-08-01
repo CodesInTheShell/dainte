@@ -7,12 +7,14 @@ import jwt
 import datetime
 from models.users import User
 from models.token_usage import TokenUsage
+from views.a import a_blueprint
 
 
 OSAINTA_SECRET_KEY = os.environ.get('OSAINTA_SECRET_KEY')
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = OSAINTA_SECRET_KEY
+app.register_blueprint(a_blueprint)
 
 genai.configure(api_key=os.environ.get('OSAINTA_GEMINI_API_KEY'))
 
@@ -105,19 +107,11 @@ def get_current_user():
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        token = request.cookies.get('access_token')
-        if not token:
+        user = get_current_user()
+        if not user:
             flash('You need to log in first.')
             return redirect(url_for('login'))
-        try:
-            jwt.decode(token, OSAINTA_SECRET_KEY, algorithms=['HS256'])
-        except jwt.ExpiredSignatureError:
-            flash('Session expired, please log in again.')
-            return redirect(url_for('login'))
-        except jwt.InvalidTokenError:
-            flash('Invalid token, please log in.')
-            return redirect(url_for('login'))
-        return f(*args, **kwargs)
+        return f(user, *args, **kwargs)
     return decorated_function
 
 MAX_CALLS_PER_DAY = 20
@@ -150,26 +144,24 @@ def token_available_check(f):
 
 @app.route('/')
 @login_required
-def index():
-    return render_template('index.html')
+def index(user):
+    return render_template('index.html', user=user.to_dict())
 
 @app.route('/icp')
 @login_required
-def icp():
-    return render_template('icp.html')
+def icp(user):
+    return render_template('icp.html', user=user.to_dict())
 
 @app.route('/analyze', methods=['POST'])
 @login_required
 @rate_limit
 @token_available_check
-def analyze():
+def analyze(user):
     data = request.form['data']
     analysis_type = request.form.getlist('analysis_type')
 
     swot_analysis_result = ''
     genassess_analysis_result = ''
-
-    user = get_current_user()
 
     if 'SWOT' in analysis_type:
         swot_analysis_result_obj = perform_analysis('SWOT', data)
@@ -217,8 +209,7 @@ def logout():
 @login_required
 @rate_limit
 @token_available_check
-def askir():
-    user = get_current_user()
+def askir(user):
     data = request.get_json()
 
     user_query = data.get('user_query')
@@ -253,8 +244,7 @@ def askir():
 @login_required
 @rate_limit
 @token_available_check
-def genintsum():
-    user = get_current_user()
+def genintsum(user):
     data = request.get_json()
 
     irs = data.get('irs')

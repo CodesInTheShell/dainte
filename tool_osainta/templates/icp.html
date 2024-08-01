@@ -15,17 +15,28 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav">
+                <ul class="navbar-nav me-auto">
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('index') }}">Home</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('icp') }}">ICP</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/a/knowledges">Knowledges</a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item bg-dark rounded me-2 px-2">
+                        <a class="nav-link text-warning" href="#">Hi {{ user.username }}</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+                    </li>
                 </ul>
             </div>
         </div>
-    </nav>
+    </nav>  
     <div class="container mt-5">
         <h1 class="text-center">Intelligence Collection Plan (ICP)</h1>
         <p class="text-center">Intelligence requirements</p>
