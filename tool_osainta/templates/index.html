@@ -27,8 +27,14 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('icp') }}">ICP</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/a/knowledges">Knowledges</a>
+                    </li>
                 </ul>
                 <ul class="navbar-nav ms-auto">
+                    <li class="nav-item bg-dark rounded me-2 px-2">
+                        <a class="nav-link text-warning" href="#">Hi {{ user.username }}</a>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
                     </li>
