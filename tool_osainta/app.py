@@ -176,7 +176,38 @@ def genintsum(user):
     user.increment_api_calls()
     return jsonify(response), 200
     
+@app.route('/reset_password', methods=['GET', 'POST'])
+def reset_password():
+    token = request.args.get('token')
+    username = request.args.get('username')
 
+    if request.method == 'POST':
+        new_password = request.form['new_password']
+        confirm_password = request.form['confirm_password']
+
+        if new_password != confirm_password:
+            error_message = 'Passwords do not match'
+            return render_template('reset_password.html', token=token, username=username, error=error_message)
+
+        if User.reset_password(token, new_password, username):
+            return redirect(url_for('login'))
+        else:
+            error_message = 'Error setting password, please regenerate or contact support.'
+            return render_template('reset_password.html', token=token, username=username, error=error_message)
+
+    return render_template('reset_password.html', token=token, username=username)
+
+@app.route('/api/reset_password_request', methods=['GET'])
+def request_reset_password_link():
+    username = request.args.get('username')
+    if not username:
+        return jsonify({'status': 'error', 'message': 'Username is required'}), 400
+    base_url = request.base_url 
+    reset_link = User.generate_reset_password_link(username, base_url)
+    if reset_link:
+        return jsonify({'status': 'success', 'message': 'Paste the link provided on your browser to set password', 'link': reset_link})
+    else:
+        return jsonify({'status': 'error', 'message': 'User not found'}), 404
 
 if __name__ == '__main__':
     if os.environ.get('OSAINTA_DEBUG'):
