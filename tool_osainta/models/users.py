@@ -120,13 +120,19 @@ class User:
         self.save()
     
     @staticmethod
-    def generate_reset_password_link(username, base_url):
+    def generate_reset_password_link(username, base_url, forgot_password=False):
         user = User.find_by_username(username)
         if not user:
             return None
+        
         reset_token = secrets.token_urlsafe(32)
-        users_collection.update_one({"username": username}, {"$set": {"reset_token": reset_token, "reset_token_expiry": datetime.datetime.utcnow() + datetime.timedelta(hours=24)}})
-        reset_link = urljoin(base_url, f"/reset_password?token={reset_token}&username={username}")
+       
+        if forgot_password:
+            users_collection.update_one({"username": username}, {"$set": {"reset_token": reset_token, "reset_token_expiry": datetime.datetime.utcnow() + datetime.timedelta(hours=48)}})
+            reset_link = urljoin(base_url, f"/set_password?token={reset_token}&username={username}")
+        else:
+            users_collection.update_one({"username": username}, {"$set": {"reset_token": reset_token, "reset_token_expiry": datetime.datetime.utcnow() + datetime.timedelta(hours=24)}})
+            reset_link = urljoin(base_url, f"/reset_password?token={reset_token}&username={username}")
         return reset_link
     
     @staticmethod

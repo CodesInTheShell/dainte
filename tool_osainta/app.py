@@ -5,6 +5,7 @@ import os
 import json
 import jwt
 import datetime
+import logging
 from models.users import User
 from models.token_usage import TokenUsage
 from views.a import a_blueprint
@@ -12,7 +13,7 @@ from views.me import me_blueprint
 from views.knowledge import knowledge_blueprint
 from controllers.knowledge_controller import KnowledgeController
 
-from middleware import login_required, rate_limit, token_available_check
+from middleware import login_required, rate_limit, token_available_check, get_current_user
 from osainta_core import perform_analysis, perform_general_assessment, perform_exec_sum, SYSTEM_INSTRUCTION, processAskedIrQuery
 
 
@@ -85,6 +86,10 @@ def analyze(user):
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    user = get_current_user()
+    if user:
+        return redirect(url_for('a.a'))
+
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
@@ -177,29 +182,43 @@ def genintsum(user):
     return jsonify(response), 200
     
 @app.route('/reset_password', methods=['GET', 'POST'])
-def reset_password():
+@login_required
+def reset_password(user):
+    """ Reset password page for authenticated user """
     token = request.args.get('token')
     username = request.args.get('username')
 
     if request.method == 'POST':
+
         new_password = request.form['new_password']
         confirm_password = request.form['confirm_password']
+        current_password = request.form['current_password']
 
         if new_password != confirm_password:
             error_message = 'Passwords do not match'
             return render_template('reset_password.html', token=token, username=username, error=error_message)
 
+        if not user.check_password(current_password):
+            error_message = 'Please check your passwords'
+            return render_template('reset_password.html', token=token, username=username, error=error_message)
+
         if User.reset_password(token, new_password, username):
-            return redirect(url_for('login'))
+            return redirect(url_for('a.a'))
         else:
-            error_message = 'Error setting password, please regenerate or contact support.'
+            error_message = 'Error resetting password, please regenerate or contact support.'
             return render_template('reset_password.html', token=token, username=username, error=error_message)
 
     return render_template('reset_password.html', token=token, username=username)
 
 @app.route('/api/reset_password_request', methods=['GET'])
-def request_reset_password_link():
+@login_required
+def request_reset_password_link(user):
+    """ Request to reset password page for authenticated user """
     username = request.args.get('username')
+
+    if username != user.username:
+        return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+
     if not username:
         return jsonify({'status': 'error', 'message': 'Username is required'}), 400
     base_url = request.base_url 
@@ -208,6 +227,45 @@ def request_reset_password_link():
         return jsonify({'status': 'success', 'message': 'Paste the link provided on your browser to set password', 'link': reset_link})
     else:
         return jsonify({'status': 'error', 'message': 'User not found'}), 404
+
+@app.route('/api/forgot_password_request', methods=['GET'])
+def request_forgot_password_link():
+    """ Forgot password request """
+    username = request.args.get('username')
+
+    if not username:
+        return jsonify({'status': 'error', 'message': 'Username is required'}), 400
+    base_url = request.base_url 
+    reset_link = User.generate_reset_password_link(username, base_url, forgot_password=True)
+    if reset_link:
+        logging.warning(f'Forgot password request for {username} link: {reset_link}')
+        return jsonify({'status': 'success', 'message': f'Contact support that username {username} has forgot password request on {datetime.datetime.now()} and ask for the link'})
+    else:
+        return jsonify({'status': 'error', 'message': 'Error occured'})
+
+@app.route('/set_password', methods=['GET', 'POST'])
+def set_password():
+    """ Set password """
+    token = request.args.get('token')
+    username = request.args.get('username')
+
+    if request.method == 'POST':
+
+        new_password = request.form['new_password']
+        confirm_password = request.form['confirm_password']
+
+        if new_password != confirm_password:
+            error_message = 'Passwords do not match'
+            return render_template('set_password.html', token=token, username=username, error=error_message)
+
+        if User.reset_password(token, new_password, username):
+            return redirect(url_for('login'))
+        else:
+            error_message = 'Error setting password, please regenerate or contact support.'
+            return render_template('set_password.html', token=token, username=username, error=error_message)
+
+    return render_template('set_password.html', token=token, username=username)
+
 
 if __name__ == '__main__':
     if os.environ.get('OSAINTA_DEBUG'):
