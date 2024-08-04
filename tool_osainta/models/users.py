@@ -1,9 +1,12 @@
 from models import db
+from werkzeug.security import generate_password_hash, check_password_hash
+from urllib.parse import urljoin
+
+import secrets
+import os
 import datetime
 
 users_collection = db['users'] 
-
-from werkzeug.security import generate_password_hash, check_password_hash
 
 class User:
     ATTRS = [
@@ -13,6 +16,8 @@ class User:
         "api_calls",
         "last_reset",
         "tokenAvailable",
+        "reset_token",
+        "reset_token_expiry",
     ]
     def __init__(self, oid=None):
         self.oid = oid
@@ -21,6 +26,9 @@ class User:
         self.api_calls = 0 # number of AI api analysis calls
         self.last_reset = datetime.datetime.now() # date last api call
         self.tokenAvailable = 0 # decrement as they receive prompt reponse by total_token_count
+        self.reset_token = None
+        self.reset_token_expiry = None
+
 
     @staticmethod
     def from_dict(data):
@@ -36,6 +44,8 @@ class User:
             "api_calls": self.api_calls,
             "last_reset": self.last_reset,
             "tokenAvailable": self.tokenAvailable,
+            "reset_token": self.reset_token,
+            "reset_token_expiry": self.reset_token_expiry,
         }
 
         if includeOid:
@@ -108,3 +118,26 @@ class User:
         """Set or reset the user tokenAvailable"""
         self.tokenAvailable = num
         self.save()
+    
+    @staticmethod
+    def generate_reset_password_link(username, base_url):
+        user = User.find_by_username(username)
+        if not user:
+            return None
+        reset_token = secrets.token_urlsafe(32)
+        users_collection.update_one({"username": username}, {"$set": {"reset_token": reset_token, "reset_token_expiry": datetime.datetime.utcnow() + datetime.timedelta(hours=24)}})
+        reset_link = urljoin(base_url, f"/reset_password?token={reset_token}&username={username}")
+        return reset_link
+    
+    @staticmethod
+    def reset_password(reset_token, new_password, username):
+        user = User.find_by_username(username)
+        if not user:
+            return False
+        if user.reset_token == reset_token and user.reset_token_expiry > datetime.datetime.utcnow():
+            user.update_password(new_password)
+            users_collection.update_one({"username": username}, {"$set": {"reset_token": None, "reset_token_expiry": None}})
+            return True
+        else:
+            return False
+
