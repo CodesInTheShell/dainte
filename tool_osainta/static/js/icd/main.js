@@ -9,15 +9,11 @@ const app = Vue.createApp({
             irs: [
             ],
             queryInput: '',
-            embeddingRag: [],
-            // [{
-            //     text: '',
-            //     embedding: [],
-            // }]
             contextText: '',
             intsum:'',
             showSpinAskOsainta: false,
             showIntSumSpinner: false,
+            selectedReference: {},
         }
     },
     created () {
@@ -50,15 +46,20 @@ const app = Vue.createApp({
         },
         toMarkDown(markData){
             return marked.parse(markData)
+        },
+        setSelectedRefence(reference){
+            this.selectedReference = reference
+            this.$refs.referenceModalBtn.click()
         }
     },
     template: /*html*/`
     <div class="mb-5">
         <hr class="my-5 py-1">
         <h4 class="bg-warning p-2 rounded" >Start asking Osainta. Add context (optional) </h4>
+        <p class="text-muted">Add knowledge base to help Osainta improve its responses <span><a href="/a/knowledges">Knowledge base page</a></span> </p>
 
         <div class="mb-3">
-            <label for="contextText" class="form-label">Add context to help Osainta answer your questions then click Ask Osainta button with your query.</label>
+            <label for="contextText" class="form-label">(Optional) Add context to help Osainta answer your questions then click Ask Osainta button with your query.</label>
             <textarea v-model="contextText" class="form-control" id="contextText" name="contextText" rows="10" required placeholder="Paste an article here."></textarea>
         </div>
         
@@ -67,8 +68,8 @@ const app = Vue.createApp({
                 <label for="query_input" class="form-label">Ask for your intelligence requirements:</label>
                 <textarea v-model="queryInput" class="form-control" id="query_input" rows="3" name="query_input" placeholder="What is OSINT? Give me a SWOT analysis of OSINT." required></textarea>
             </div>
-            <div v-if="showSpinAskOsainta" class="spinner-border" role="status">
-                <span class="visually-hidden">Loading...</span>
+            <div v-if="showSpinAskOsainta">
+                <span  class="badge bg-info text-dark mx-2">Please wait...</span>
             </div>
             <div>
                 <button @click="queryOsainta" type="button" class="btn btn-dark">Ask Osainta</button>
@@ -93,7 +94,10 @@ const app = Vue.createApp({
                         <div class="accordion-body">
                             <div v-html="toMarkDown(ir.irAnswer)"></div>
                         </div>
-                        <p class="text-muted text-small p-3">Reference: {{ ir.irReference }}</p>
+                        <div class="bg-light p-2 rounded">
+                            <p class="ms-3">References (if any) click to show more: <span v-for="(ref, index) in ir.irReference" :key="index" class="text-decoration-underline text-small text-primary ms-3" @click="setSelectedRefence(ref)">{{ref.knowledgeName}}</span></p>
+                        </div>
+                        
                     </div>
                 </div>
             </div>
@@ -102,11 +106,11 @@ const app = Vue.createApp({
         <hr class="my-5">
 
         <h4 class="bg-warning p-2 rounded" >Intelligence summary</h4>
-        <div v-if="showIntSumSpinner" class="spinner-border text-success" role="status">
-            <span class="visually-hidden">Loading...</span>
-        </div>
+        <div v-if="showIntSumSpinner">
+                <span  class="badge bg-info text-dark mx-2">Please wait...</span>
+            </div>
         <div>
-            <p class="text-muted">Generate an intelligence summary. This will consider all of your IRs above. The greater the IRs and its reponse is the greater the intsum result.</p>
+            <p class="text-muted">Generate an intelligence summary. This will consider all of your IRs above. The greater the IRs and its reponses are the better the intsum result is.</p>
             <button @click="generateIntSum" type="button" class="btn btn-success">Generate INTSUM</button>
         </div>
         
@@ -115,9 +119,29 @@ const app = Vue.createApp({
         </div>
 
         <hr class="my-5">
+    
 
-
-
+        <!-- Button trigger modal -->
+        <button hidden ref="referenceModalBtn" type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#referencesModal">
+            Launch demo modal
+        </button>
+        <!-- Modal -->
+        <div class="modal fade" id="referencesModal" tabindex="-1" aria-labelledby="referencesModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="referencesModalLabel">{{selectedReference.knowledgeName}}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        {{selectedReference.chunk}}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
     `
 })
