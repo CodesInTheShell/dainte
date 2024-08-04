@@ -1,16 +1,21 @@
 import store from './store.js';
 import { router } from './routes.js';
-
+import { getMe } from './backend.js';
 
 
 const app = Vue.createApp({
     router,
     data(){
         return {
-            hmm: '',
+            username: '',
         }
     },
     created () {
+        getMe().then(function(response) {
+            console.log('response: ', response.data)
+            this.username = response.data.data.username
+        }.bind(this))
+        
     },
     components: {
     },
@@ -37,6 +42,9 @@ const app = Vue.createApp({
                             </li>
                         </ul>
                         <ul class="navbar-nav ms-auto">
+                            <li class="nav-item bg-dark rounded me-2 px-2">
+                                <a class="nav-link text-warning" href="#">Hello, {{username}}</a>
+                            </li>
                             <li class="nav-item">
                                 <a class="nav-link" href="/logout">Logout</a>
                             </li>

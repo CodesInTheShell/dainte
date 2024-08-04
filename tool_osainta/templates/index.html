@@ -33,7 +33,7 @@
                 </ul>
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item bg-dark rounded me-2 px-2">
-                        <a class="nav-link text-warning" href="#">Hi {{ user.username }}</a>
+                        <a class="nav-link text-warning" href="#">Hello, {{ user.username }}</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
@@ -43,8 +43,8 @@
         </div>
     </nav>    
     <div class="container my-5 p-5">
-        <h1 class="text-center">OSAINTA</h1>
-        <h4 class="text-muted text-center mb-4">Artificial intelligence for open source intelligence.</h4>
+        <h1 class="">Quick Analysis</h1>
+        <h6 class="text-muted mb-4">Run a quick analysis.</h6>
         <form id="analyzeForm" method="POST">
             <div class="mb-3">
                 <label for="data" class="form-label">Data context:</label>
@@ -53,11 +53,15 @@
             <div class="mb-3">
                 <label class="form-label">Analysis Type</label>
                 <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="SWOT" name="analysis_type" value="SWOT" checked>
+                    <input class="form-check-input" type="checkbox" id="execSum" name="analysis_type" value="execSum" checked>
+                    <label class="form-check-label" for="execSum">Executive Summary</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="SWOT" name="analysis_type" value="SWOT">
                     <label class="form-check-label" for="SWOT">SWOT</label>
                 </div>
                 <div class="form-check">
-                    <input class="form-check-input" type="checkbox" id="general_assessment" name="analysis_type" value="general_assessment" checked>
+                    <input class="form-check-input" type="checkbox" id="general_assessment" name="analysis_type" value="general_assessment">
                     <label class="form-check-label" for="general_assessment">General Assessment</label>
                 </div>
                 <div class="form-check">
@@ -75,6 +79,11 @@
             </button>
         </form>
         <div id="errResult" class="mt-5"></div>
+        <div class="m-5 border p-3 border-secondary">
+            <h2 class="text-center">Executive Summary Result</h2>
+            <hr>
+            <div id="execSum_result" class="mt-5"></div>
+        </div>
         <div class="m-5 border p-3 border-secondary">
             <h2 class="text-center">SWOT Results</h2>
             <hr>
@@ -117,7 +126,10 @@
                             document.getElementById('swot_result').innerHTML =
                             marked.parse(response.swot);
                             document.getElementById('genassess_result').innerHTML =
-                            marked.parse(response.genassess);    
+                            marked.parse(response.genassess);   
+
+                            document.getElementById('execSum_result').innerHTML =
+                            marked.parse(response.execSum);  
                         } else {
                             $('#errResult').html('<div class="alert alert-danger">' + 'Error performing analysis.' + '</div>');
                         }

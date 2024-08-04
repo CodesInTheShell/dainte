@@ -8,139 +8,24 @@ import datetime
 from models.users import User
 from models.token_usage import TokenUsage
 from views.a import a_blueprint
+from views.me import me_blueprint
+from views.knowledge import knowledge_blueprint
+from controllers.knowledge_controller import KnowledgeController
+
+from middleware import login_required, rate_limit, token_available_check
+from osainta_core import perform_analysis, perform_general_assessment, perform_exec_sum, SYSTEM_INSTRUCTION, processAskedIrQuery
 
 
 OSAINTA_SECRET_KEY = os.environ.get('OSAINTA_SECRET_KEY')
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = OSAINTA_SECRET_KEY
+
+# REGISTER BLUEPRINT VIEWS HERE
 app.register_blueprint(a_blueprint)
+app.register_blueprint(me_blueprint)
+app.register_blueprint(knowledge_blueprint)
 
-genai.configure(api_key=os.environ.get('OSAINTA_GEMINI_API_KEY'))
-
-SYSTEM_INSTRUCTION = """
-IMPORTANT: 
-Your response is in markdown.
-Your name Osainta, an opensource intellligence analyst bot.
-"""
-
-def perform_analysis(analysis_type, data):
-    model = genai.GenerativeModel(model_name=os.environ.get('OSAINTA_MODEL', 'gemini-1.5-flash'), system_instruction=SYSTEM_INSTRUCTION)
-    prompt = f"Perform a {analysis_type} analysis on the following data:\n\n{data}"
-    response = model.generate_content(prompt)
-    return response
-
-def perform_general_assessment(data):
-    model = genai.GenerativeModel(model_name=os.environ.get('OSAINTA_MODEL', 'gemini-1.5-flash'), system_instruction=SYSTEM_INSTRUCTION)
-    prompt = f"""Perform a general assessment analysis on the following data:\n\n{data}
-
-    Follow the response structure below:
-    Capabilities
-    Vulnerabilities 
-    Course of actions
-    Implications to philippines
-    
-    """
-    response = model.generate_content(prompt)
-    return response
-
-def process_ask_query(user_query, context):
-    model = genai.GenerativeModel(model_name=os.environ.get('OSAINTA_MODEL', 'gemini-1.5-flash'), system_instruction=SYSTEM_INSTRUCTION)
-    prompt = f"Answer the user query and be sure to refer your answer to the context if available.\n\nCONTEXT: {context}\n\nUSER QUERY: {user_query} "
-    response = model.generate_content(prompt)
-    return response.text
-
-def split_text(text, chunk_size=200, overlap=50):
-    words = text.split()
-    chunks = []
-    start = 0
-    while start < len(words):
-        end = start + chunk_size
-        chunk = words[start:end]
-        chunks.append(' '.join(chunk))
-        start = end - overlap
-    return chunks
-
-def embed_user_query( user_query):
-    result = genai.embed_content(
-            model="models/text-embedding-004",
-            content=user_query,
-            task_type="retrieval_document",
-            title="Embedding of single string"
-        )
-    embedding = result['embedding']
-    return embedding
-
-def embedLargeText(large_text):
-    chunks = split_text(large_text)
-    chunks_and_embeddings = []
-
-    for chunk in chunks:
-        result = genai.embed_content(
-                model="models/text-embedding-004",
-                content=chunk,
-                task_type="retrieval_document",
-                title="Embedding of single string"
-            )
-        embedding = result['embedding']
-        chunks_and_embeddings.append(
-            {
-                "chunk": chunk,
-                "embedding": embedding
-            }
-        )
-    return
-
-def get_current_user():
-    token = request.cookies.get('access_token')
-    if not token:
-        return None
-    try:
-        payload = jwt.decode(token, OSAINTA_SECRET_KEY, algorithms=['HS256'])
-        return User.find_by_username(payload['sub'])
-    except jwt.ExpiredSignatureError:
-        return None
-    except jwt.InvalidTokenError:
-        return None
-
-
-def login_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        user = get_current_user()
-        if not user:
-            flash('You need to log in first.')
-            return redirect(url_for('login'))
-        return f(user, *args, **kwargs)
-    return decorated_function
-
-MAX_CALLS_PER_DAY = 20
-
-def rate_limit(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        user = get_current_user()
-        if not user:
-            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
-        
-        if not user.check_rate_limit(MAX_CALLS_PER_DAY):
-            return jsonify({'status': 'error', 'message': 'Rate limit exceeded'}), 429
-        
-        return f(*args, **kwargs)
-    return decorated_function
-
-def token_available_check(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        user = get_current_user()
-        if not user:
-            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
-        
-        if user.tokenAvailable < 1:
-            return jsonify({'status': 'error', 'message': 'You do not have enough token'}), 429
-        
-        return f(*args, **kwargs)
-    return decorated_function
 
 @app.route('/')
 @login_required
@@ -154,7 +39,7 @@ def icp(user):
 
 @app.route('/analyze', methods=['POST'])
 @login_required
-@rate_limit
+# @rate_limit
 @token_available_check
 def analyze(user):
     data = request.form['data']
@@ -162,6 +47,7 @@ def analyze(user):
 
     swot_analysis_result = ''
     genassess_analysis_result = ''
+    exec_sum_result_obj_result = ''
 
     if 'SWOT' in analysis_type:
         swot_analysis_result_obj = perform_analysis('SWOT', data)
@@ -181,7 +67,21 @@ def analyze(user):
         user.decrementTokenAvailableBy(genassess_analysis_result_obj.usage_metadata.total_token_count)
         user.increment_api_calls()
     
-    return jsonify({'status': 'ok', 'swot': swot_analysis_result, 'genassess': genassess_analysis_result})
+    if 'execSum' in analysis_type:
+        exec_sum_result_obj = perform_exec_sum(data)
+        TokenUsage.create(user.oid, exec_sum_result_obj)
+        exec_sum_result_obj_result = exec_sum_result_obj.text
+
+        # User AI Token Management
+        user.decrementTokenAvailableBy(exec_sum_result_obj.usage_metadata.total_token_count)
+        user.increment_api_calls()
+    
+    return jsonify({
+        'status': 'ok', 
+        'swot': swot_analysis_result, 
+        'genassess': genassess_analysis_result, 
+        'execSum': exec_sum_result_obj_result
+    })
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -207,7 +107,7 @@ def logout():
 
 @app.route('/api/askir', methods=['POST'])
 @login_required
-@rate_limit
+# @rate_limit
 @token_available_check
 def askir(user):
     data = request.get_json()
@@ -215,24 +115,17 @@ def askir(user):
     user_query = data.get('user_query')
     context = data.get('context')
 
-    promptWithContext = f"""
-    INSTRUCTIONS:
-    Analyze the context and user query. Your analysis may contain any of the likelyhood expression depending if it is applicable to you analysis and be sure to apply it only on your analysis response on the question and not about the user.
-    Answer the question, use the context if available for additional context.
-    LIKELYHOOD OF EXPRESSION ARE: very unlikely, unlikely, likely and highly likely, almost certain.
-    EXAMPLE RESPONSE: It is highly likely to rain because it is cloudy. Some other details.
-    CONTEXT:\n{context}
-    QUESTION: {user_query}
-    """
+    references = KnowledgeController.getReferences(user_query, str(user.oid))
+    additionalInfo = KnowledgeController.forRagInject(references)
+    knowledgeNameAndChunk = KnowledgeController.kvKnowledge(references)
 
-    model = genai.GenerativeModel(model_name=os.environ.get('OSAINTA_MODEL', 'gemini-1.5-flash'), system_instruction=SYSTEM_INSTRUCTION)
-    model_response = model.generate_content(promptWithContext)
+    model_response = processAskedIrQuery(user_query, context, ragAdditionalInfo=additionalInfo)
 
     response = {
             "status": "success",
             "irQuery": user_query,
             "irAnswer": model_response.text,
-            "irReference": ""
+            "irReference": knowledgeNameAndChunk
         }
     TokenUsage.create(user.oid, model_response)
     # User AI Token Management
@@ -242,7 +135,7 @@ def askir(user):
 
 @app.route('/api/genintsum', methods=['POST'])
 @login_required
-@rate_limit
+# @rate_limit
 @token_available_check
 def genintsum(user):
     data = request.get_json()
@@ -287,6 +180,6 @@ def genintsum(user):
 
 if __name__ == '__main__':
     if os.environ.get('OSAINTA_DEBUG'):
-        app.run(host='0.0.0.0', port=5000, debug=True)
+        app.run(debug=True)
     else:
-        app.run(host='0.0.0.0', port=5000, debug=False)
+        app.run(debug=False)
