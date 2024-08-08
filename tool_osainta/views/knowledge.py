@@ -24,8 +24,9 @@ def knowledge(user):
                 "name": knowledge.name,
                 "description": knowledge.description,
                 "data": knowledge.data,
-                "userId": knowledge.userId,
-                "created": knowledge.created,
+                "oid": str(knowledge.oid),
+                "userId": str(knowledge.userId),
+                "created": knowledge.created.isoformat() if knowledge.created else None,
             }
             return jsonify({
                 'status': 'success',
@@ -54,7 +55,7 @@ def list_knowledge(user):
         kData = {
             "name": knowledge.name,
             "description": knowledge.description,
-            "created": knowledge.created.isoformat(),
+            "created": knowledge.created.isoformat() if knowledge.created else None,
             "oid": str(knowledge.oid),
             "userId": str(knowledge.userId),
         }
@@ -68,7 +69,7 @@ def list_knowledge(user):
             'data': knowledge_list
         })
 
-    return {'status': 'error', 'message': 'Something went wrong'}
+    return {'status': 'error', 'data': knowledge_list}
 
 @knowledge_blueprint.route('/api/knowledge', methods=['POST'])
 @login_required

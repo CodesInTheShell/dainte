@@ -11,10 +11,16 @@ from models.token_usage import TokenUsage
 from views.a import a_blueprint
 from views.me import me_blueprint
 from views.knowledge import knowledge_blueprint
+from views.projects import project_blueprint
+from views.irs import inreq_blueprint
+from views.reports import report_blueprint
+
+
 from controllers.knowledge_controller import KnowledgeController
+from controllers.irs_controller import InReqController
 
 from middleware import login_required, rate_limit, token_available_check, get_current_user
-from osainta_core import perform_analysis, perform_general_assessment, perform_exec_sum, SYSTEM_INSTRUCTION, processAskedIrQuery
+from osainta_core import perform_analysis, perform_general_assessment, perform_exec_sum, SYSTEM_INSTRUCTION, processAskedIrQuery, generateSuggestedLinks
 
 
 OSAINTA_SECRET_KEY = os.environ.get('OSAINTA_SECRET_KEY')
@@ -26,6 +32,10 @@ app.config['SECRET_KEY'] = OSAINTA_SECRET_KEY
 app.register_blueprint(a_blueprint)
 app.register_blueprint(me_blueprint)
 app.register_blueprint(knowledge_blueprint)
+app.register_blueprint(project_blueprint)
+app.register_blueprint(inreq_blueprint)
+app.register_blueprint(report_blueprint)
+
 
 
 @app.route('/')
@@ -119,6 +129,7 @@ def askir(user):
 
     user_query = data.get('user_query')
     context = data.get('context')
+    projectId = data.get('projectId', None)
 
     references = KnowledgeController.getReferences(user_query, str(user.oid))
     additionalInfo = KnowledgeController.forRagInject(references)
@@ -132,6 +143,16 @@ def askir(user):
             "irAnswer": model_response.text,
             "irReference": knowledgeNameAndChunk
         }
+
+    ## Save IR
+    if projectId:
+        irData = {
+            "irAnswer": model_response.text,
+            "irQuery": user_query,
+            "irReferences": knowledgeNameAndChunk,
+            "projectId": data.get('projectId'),
+        }
+        InReqController.saveIr(irData, user.oid)
     TokenUsage.create(user.oid, model_response)
     # User AI Token Management
     user.decrementTokenAvailableBy(model_response.usage_metadata.total_token_count)
