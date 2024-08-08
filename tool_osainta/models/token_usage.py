@@ -37,7 +37,6 @@ class TokenUsage:
             "created": self.created,
         }
         if includeOid:
-            print('NAG INCLDUE: ', includeOid)
             if self.oid:
                 data['oid'] = self.oid
         return data

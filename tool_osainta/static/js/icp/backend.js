@@ -38,3 +38,33 @@ export const genintsumApi = (data) => {
             return ''
     })
 }
+
+export const listProjects = () => {
+    return apiClient.get('/api/project-list')
+        .then((response) => {
+            return response
+        }).catch((e) => {
+            return ''
+    })
+}
+
+export const listInReqs = (projectId) => {
+    return apiClient.get('/api/inreq-list?projectId='+projectId)
+        .then((response) => {
+            return response
+        }).catch((e) => {
+            return ''
+    })
+}
+
+export const saveReport = (data) => {
+    return apiClient.post('/api/report', data, {
+        })
+        .then((response) => {
+            return response
+        }).catch((e) => {
+            return ''
+    })
+}
+
+

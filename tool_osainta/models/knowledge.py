@@ -32,7 +32,7 @@ class Knowledge:
         self.description = None
         self.data = 0 
         self.userId = None 
-        self.created = 0 
+        self.created = None
         self.pointIds = []
 
     @staticmethod

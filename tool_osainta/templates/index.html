@@ -22,7 +22,10 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('index') }}">Home</a>
+                        <a class="nav-link" href="{{ url_for('index') }}">Quick Analysis</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('a.a') }}">Dashboard</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('icp') }}">ICP</a>
@@ -135,7 +138,7 @@
                         }
                     },
                     error: function(response) {
-                        console.log('responseERR: ', response.responseJSON);
+                        console.error('responseERR: ', response.responseJSON);
                         $('#errResult').html('<div class="alert alert-danger">' +response.responseJSON.message+'</div>');
                     },
                     complete: function() {

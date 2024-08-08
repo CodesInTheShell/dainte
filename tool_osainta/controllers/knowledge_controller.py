@@ -47,7 +47,7 @@ class KnowledgeController:
 
         textForPrompt = 'ADDITIONAL INFORMATION:\n'
         for ref in ragReferences:
-            textForPrompt += ref + '\n'
+            textForPrompt += ref + '\n\n'
         
         return textForPrompt
     

@@ -70,7 +70,7 @@ export default {
         }
     },
     template: /*html*/`
-        <div class="container m-2 pt-4">
+        <div class="m-2 p-4">
             <h1 class="pb-4"><span><i class="bi bi-book pe-2" style="font-size: 3rem; color: cornflowerblue;"></i></span>Your knowledge base</h1>
             
             <p>Here is where you can add stock knowledges that can help Osainta to search for references to significantly improve response. The more information stocked, the better.</p>

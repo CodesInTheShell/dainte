@@ -71,7 +71,6 @@ def perform_exec_sum(data):
 def process_ask_query(user_query, context):
     model = genai.GenerativeModel(model_name=os.environ.get('OSAINTA_MODEL', 'gemini-1.5-flash'), system_instruction=SYSTEM_INSTRUCTION)
     prompt = f"Answer the user query and be sure to refer your answer to the context if available.\n\nCONTEXT: {context}\n\n {additionalInfo}\n\nUSER QUERY: {user_query} "
-    print('PROMPT: ',prompt)
     response = model.generate_content(prompt)
     return response.text
 
@@ -131,4 +130,28 @@ def processAskedIrQuery(user_query, context, ragAdditionalInfo=''):
 
     return model_response
 
+
+import typing_extensions as typing
+
+class SearchLinks(typing.TypedDict):
+  search_link: str
+
+def generateSuggestedLinks(data):
+    promptWithContext = f"""
+    Generate a suggestion google search links regarding the following information I want to do research. Give me a 5 google search link the would likely lead to a better result. Respond in the format of {{'data': [ 'https://www.google.com/search?q=sam_wincester']}}
+    
+    example link:
+    https://www.google.com/search?q=sam_wincester
+
+    Information:
+    {data.get('projectName', '')}. {data.get('projectDescription', '')}
+    """
+    model = genai.GenerativeModel(
+        model_name=os.environ.get('OSAINTA_MODEL', 'gemini-1.5-flash'), 
+        system_instruction=SYSTEM_INSTRUCTION,
+        generation_config={"response_mime_type": "application/json", "response_schema": list[SearchLinks]}
+        )
+    model_response = model.generate_content(promptWithContext)
+
+    return model_response
     

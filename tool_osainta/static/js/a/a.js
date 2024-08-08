@@ -12,7 +12,7 @@ const app = Vue.createApp({
     },
     created () {
         getMe().then(function(response) {
-            console.log('response: ', response.data)
+            store.setMe(response.data.data)
             this.username = response.data.data.username
         }.bind(this))
         
@@ -32,7 +32,10 @@ const app = Vue.createApp({
                     <div class="collapse navbar-collapse" id="navbarNav">
                         <ul class="navbar-nav me-auto">
                             <li class="nav-item">
-                                <a class="nav-link" href="/">Home</a>
+                                <a class="nav-link" href="/">Quick Analysis</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/a">Dashboard</a>
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link" href="/icp">ICP</a>
